@@ -16,8 +16,7 @@ None. Simply download the binary for your OS, supply the directory you wish to s
 Running `webscan.exe` with no arguments shows the support flags:
 
 	C:\Users\beastmode> webscan.exe
-	Usage: neopi.py [options] <start directory> <OPTIONAL: filename regex>
-
+	
 	Options:
 	  -dir string
         	Directory to scan for webshells 
