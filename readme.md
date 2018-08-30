@@ -1,4 +1,4 @@
-#About Webshell Scan
+# About Webshell Scan
 Webshell scan is a cross platform standalone binary that recursively scans through a specified directory with either user defined or default regex. 
 
 This tool is related to the following write up:
@@ -9,10 +9,10 @@ To test effectiveness of the scanner, it was tested against the tennc webshell r
 
 https://github.com/tennc/webshell 
 
-###Requirements
+### Requirements
 None. Simply download the binary for your OS, supply the directory you wish to scan and let it rip.
 
-###Running the binary
+### Running the binary
 Running `webscan.exe` with no arguments shows the support flags:
 
 	C:\Users\beastmode> webscan.exe
@@ -39,12 +39,12 @@ The output of the scan we be written to console. Example below:
     C:\tennc\webshell-master\138shell\C\c99(1).php.txt|map[cmd:21 eval(:3 exec(:7]
     C:\tennc\webshell-master\138shell\C\c99.txt|map[cmd:30 exec(:11 eval(:2]
 
-###Custom regex
+### Custom regex
 You can also supply your own regex if you have some other specific regex term you're looking for:
 
     C:\Users\beastmode\webscan.exe -dir C:\tennc -regex "eval\\(|cmd|exec\\("
     
-###Building the project
+### Building the project
 If you decide to modify the source code, you can build it using the following commands:
 
     cd <path-to-project>
