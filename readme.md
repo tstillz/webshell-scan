@@ -33,7 +33,7 @@ The only required argument is `dir`, but you can override system defaults if you
 	
 The output of the scan we be written to console. Example below:
 
-	C:\Users\beastmode> webscan.exe -dir C:\tennc
+	/Users/beastmode$ ./webscan -dir /Users/beastmode/webshell-master
 
 	{"filePath":"/Users/beastmode/webshell-master/138shell/C/c99.txt","size":152950,"md5":"7a3cc460306cbf50b4f230884624acb0","matches":{"eval(":2}}
     {"filePath":"/Users/beastmode/webshell-master/138shell/F/Fatalshell.php.txt","size":16375,"md5":"b15583f4eaad10a25ef53ab451a4a26d","matches":{"eval(":1}}
