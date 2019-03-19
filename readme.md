@@ -31,7 +31,7 @@ Running `webscan` with no arguments shows the following arguments:
             
 The only required argument is `dir`, but you can override system defaults if you wish. 
 	
-The output of the scan we be written to console. Example below:
+The output of the scan we be written to console. Example below (send stdout to a file and review offline is best):
 
 	/Users/beastmode$ ./webscan -dir /Users/beastmode/webshell-master
 
@@ -39,6 +39,10 @@ The output of the scan we be written to console. Example below:
     {"filePath":"/Users/beastmode/webshell-master/138shell/F/Fatalshell.php.txt","size":16375,"md5":"b15583f4eaad10a25ef53ab451a4a26d","matches":{"eval(":1}}
     {"filePath":"/Users/beastmode/webshell-master/138shell/D/Dx.txt","size":111606,"md5":"9cfe372d49fe8bf2fac8e1c534153d9b","matches":{"eval(":4}}
     {"filePath":"/Users/beastmode/webshell-master/138shell/D/DxShell_hk.php.txt","size":111841,"md5":"8705c4495a9fd1811f31e2507f93e63e","matches":{"eval(":4}}
+
+    ### With STDOUT:
+    
+    /Users/beastmode$ ./webscan -dir /Users/beastmode/webshell-master -raw_contents=true > scan_results.json
 
 ### Custom regex
 You can also supply your own regex if you have some other specific regex term you're looking for:

@@ -39,6 +39,36 @@ type Metrics struct {
 var matched = 0
 var cleared = 0
 
+var filesToScan = make(chan string, 1000)
+
+func processMatches(j string, r regexp.Regexp) (fileMatches map[string]int, size int64){
+
+	fileHandle, err := os.Open(j)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer fileHandle.Close()
+
+	fi, err := os.Stat(j)
+	if err != nil {
+		log.Println(err)
+	}
+
+	fileScanner := bufio.NewScanner(fileHandle)
+	fileMatches = make(map[string]int)
+
+	for fileScanner.Scan() {
+		matches := r.FindStringSubmatch(strings.ToLower(fileScanner.Text()))
+		if len(matches) > 0 {
+			for _, it := range matches {
+				fileMatches[it] += 1
+			}
+		}
+	}
+
+
+	return fileMatches, fi.Size()
+}
 func md5HashFile(filePath string) (string, error) {
 	var returnMD5String string
 	file, err := os.Open(filePath)
@@ -87,61 +117,40 @@ func compressEncode(filePath string, fileSize int64) string {
 	return imgBase64Str
 
 }
-func Scan_worker(id int, filesToScan <-chan string, r regexp.Regexp, wg *sync.WaitGroup, rawContents bool) {
+func Scan_worker(id int, r regexp.Regexp, wg *sync.WaitGroup, rawContents bool) {
 	for j := range filesToScan {
 		//fmt.Println("Worker:", id, "File:", j)
 		//fmt.Println(len(filesToScan))
 
-		fileHandle, err := os.Open(j)
-		if err != nil {
-			log.Fatal(err)
-		}
-		defer fileHandle.Close()
-
-		fileScanner := bufio.NewScanner(fileHandle)
-		fileMatches := make(map[string]int)
-
-		for fileScanner.Scan() {
-			matches := r.FindStringSubmatch(strings.ToLower(fileScanner.Text()))
-			if len(matches) > 0 {
-				for _, it := range matches {
-					fileMatches[it] += 1
-				}
-			}
-		}
-
+		Jdata := JsonOut{}
+		Jdata.FilePath = j
+		fileMatches, size := processMatches(j, r)
+		Jdata.Size = size
+		Jdata.Matches = fileMatches
 		if len(fileMatches) != 0 {
 			matched = matched + 1
-			Jdata := JsonOut{}
-			Jdata.FilePath = j
-			Jdata.Matches = fileMatches
-			fi, err := os.Stat(j)
-			if err != nil {
-				log.Println(err)
-			}
-			Jdata.Size = fi.Size()
-			fHash, err := md5HashFile(j)
-			Jdata.MD5 = fHash
-
-			if rawContents {
-				Jdata.RawContents = compressEncode(j, Jdata.Size)
-			}
-
-			data, err := json.Marshal(Jdata)
-
-			if err != nil {
-				log.Fatal(err)
-			}
-			fmt.Printf("%s\n", data)
-		} else if len(fileMatches) == 0 {
+		}else if len(fileMatches) == 0 {
 			cleared = cleared + 1
+			continue
 		}
+
+		fHash, err := md5HashFile(j)
+		if err != nil {
+			log.Println(err)
+		}
+		Jdata.MD5 = fHash
+
+		if rawContents {
+			Jdata.RawContents = compressEncode(j, Jdata.Size)
+		}
+
+		data, err := json.Marshal(Jdata)
+		fmt.Printf("%s\n", data)
 	}
 	wg.Done()
 }
 
 func main() {
-	filesToScan := make(chan string, 100000)
 
 	start := time.Now()
 	var dir = flag.String("dir", "", "Directory to scan for webshells")
@@ -166,29 +175,37 @@ func main() {
 
 	r := regexp.MustCompile(regexString)
 
-	totalScanned := 0
+	totalFilesScanned := 0
+
+	var wg sync.WaitGroup
+	for w := 1; w <= 10; w++ {
+		wg.Add(1)
+		go Scan_worker(w, *r, &wg, *rawContents)
+	}
 
 	filepath.Walk(*dir, func(path string, f os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
 
-		if f.Size() < (*size * 1024 * 1024) {
-			//fmt.Println(f.Size(), *size * 1024 * 1024)
-			//fmt.Println(path, f.Size())
+		if !f.IsDir(){
+			if f.Size() < (*size * 1024 * 1024) {
+				//fmt.Println(f.Size(), *size * 1024 * 1024)
+				//fmt.Println(path, f.Size())
 
-			/// Scan all files with all extensions
-			if *exts == "" {
-				filesToScan <- path
-				totalScanned = totalScanned + 1
+				/// Scan all files with all extensions
+				if *exts == "" {
+					filesToScan <- path
+					totalFilesScanned = totalFilesScanned + 1
 
 				/// Scan files with specific extensions
-			} else {
-				items := strings.SplitAfter(*exts, "|")
-				for _, e := range items {
-					if strings.HasSuffix(path, e) {
-						filesToScan <- path
-						totalScanned = totalScanned + 1
+				}else {
+					items := strings.SplitAfter(*exts, "|")
+					for _, e := range items {
+						if strings.HasSuffix(path, e) {
+							filesToScan <- path
+							totalFilesScanned = totalFilesScanned + 1
+						}
 					}
 				}
 			}
@@ -197,16 +214,10 @@ func main() {
 	})
 
 	close(filesToScan)
-
-	var wg sync.WaitGroup
-	for w := 1; w <= 10; w++ {
-		wg.Add(1)
-		go Scan_worker(w, filesToScan, *r, &wg, *rawContents)
-	}
 	wg.Wait()
 
 	metrics := Metrics{}
-	metrics.Scanned = totalScanned
+	metrics.Scanned = totalFilesScanned
 	metrics.Clear = cleared
 	metrics.Matched = matched
 	metrics.ScannedDir = *dir
