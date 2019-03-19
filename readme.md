@@ -16,7 +16,7 @@ None! Simply download the binary for your OS, supply the directory you wish to s
 ### Running the binary
 Running `webscan` with no arguments shows the following arguments:
 
-	/Users/beastmode> ./webscan
+	/Users/beastmode$ ./webscan
 	Options:
 	    -dir string
           	Directory to scan for web shells
