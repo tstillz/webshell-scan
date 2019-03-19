@@ -50,8 +50,8 @@ If you decide to modify the source code, you can build it using the following co
 
     cd <path-to-project>
     ## Windows
-    GOOS=windows GOARCH=386 go build -o webscan.exe main.go
+    GOOS=windows GOARCH=386 go build -o webscan_windows.exe main.go
     ## Linux
-    GOOS=linux GOARCH=386 go build -o webscan main.go
+    GOOS=linux GOARCH=386 go build -o webscan_linux main.go
     ## Darwin
-    GOOS=darwin GOARCH=386 go build -o webscan main.go
+    GOOS=darwin GOARCH=386 go build -o webscan_darwin main.go
