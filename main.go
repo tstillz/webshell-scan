@@ -14,17 +14,29 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"os/user"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 )
 
-type JsonOut struct {
+type OSInfo struct {
+	Hostname    string   `json:"hostname"`
+	EnvVars     []string `json:"envVars"`
+	Username    string   `json:"username"`
+	UserID      string   `json:"userID"`
+	RealName    string   `json:"realName"`
+	UserHomeDir string   `json:"userHomeDir"`
+}
+
+type FileObj struct {
 	FilePath    string         `json:"filePath"`
 	Size        int64          `json:"size"`
 	MD5         string         `json:"md5"`
+	Timestamps  FileTimes      `json:"timestamps"`
 	Matches     map[string]int `json:"matches"`
 	RawContents string         `json:"rawContents,omitempty"`
 }
@@ -34,6 +46,14 @@ type Metrics struct {
 	Clear      int     `json:"noMatches"`
 	ScannedDir string  `json:"directory"`
 	ScanTime   float64 `json:"scanDuration"`
+	SystemInfo OSInfo  `json:"systemInfo"`
+}
+
+type FileTimes struct {
+	Birth    time.Time `json:"birth"`
+	Created  time.Time `json:"created"`
+	Modified time.Time `json:"modified"`
+	Accessed time.Time `json:"accessed"`
 }
 
 var matched = 0
@@ -41,7 +61,23 @@ var cleared = 0
 
 var filesToScan = make(chan string, 1000)
 
-func processMatches(j string, r regexp.Regexp) (fileMatches map[string]int, size int64){
+/*
+### TODO
+Test Cases
+
+CPU/Mem Limits
+### Server Detection (Scan Profiles)
+IIS
+- Web.Config parsing (ISAPI Filters/Handlers)
+-- Detect all web roots to scan automatically
+Apache
+- Detect web roots to scan
+Tomcat
+- Catalina Logs
+- War File Deployment Logs
+*/
+
+func processMatches(j string, r regexp.Regexp) (fileMatches map[string]int, size int64) {
 
 	fileHandle, err := os.Open(j)
 	if err != nil {
@@ -66,7 +102,6 @@ func processMatches(j string, r regexp.Regexp) (fileMatches map[string]int, size
 		}
 	}
 
-
 	return fileMatches, fi.Size()
 }
 func md5HashFile(filePath string) (string, error) {
@@ -83,6 +118,21 @@ func md5HashFile(filePath string) (string, error) {
 	hashInBytes := hash.Sum(nil)[:16]
 	returnMD5String = hex.EncodeToString(hashInBytes)
 	return returnMD5String, nil
+}
+func statTimes(filePath string) (ts FileTimes, err error) {
+	fi, err := os.Stat(filePath)
+	if err != nil {
+		return
+	}
+
+	stat := fi.Sys().(*syscall.Stat_t)
+	ts.Modified = time.Unix(int64(stat.Mtimespec.Sec), int64(stat.Mtimespec.Nsec)).UTC()
+	ts.Accessed = time.Unix(int64(stat.Atimespec.Sec), int64(stat.Atimespec.Nsec)).UTC()
+	ts.Created = time.Unix(int64(stat.Ctimespec.Sec), int64(stat.Ctimespec.Nsec)).UTC()
+	ts.Birth = time.Unix(int64(stat.Birthtimespec.Sec), int64(stat.Birthtimespec.Nsec)).UTC()
+
+	return
+
 }
 func compressEncode(filePath string, fileSize int64) string {
 
@@ -117,19 +167,19 @@ func compressEncode(filePath string, fileSize int64) string {
 	return imgBase64Str
 
 }
-func Scan_worker(id int, r regexp.Regexp, wg *sync.WaitGroup, rawContents bool) {
+func Scan_worker(r regexp.Regexp, wg *sync.WaitGroup, rawContents bool) {
 	for j := range filesToScan {
 		//fmt.Println("Worker:", id, "File:", j)
 		//fmt.Println(len(filesToScan))
 
-		Jdata := JsonOut{}
+		Jdata := FileObj{}
 		Jdata.FilePath = j
 		fileMatches, size := processMatches(j, r)
 		Jdata.Size = size
 		Jdata.Matches = fileMatches
 		if len(fileMatches) != 0 {
 			matched = matched + 1
-		}else if len(fileMatches) == 0 {
+		} else if len(fileMatches) == 0 {
 			cleared = cleared + 1
 			continue
 		}
@@ -144,8 +194,13 @@ func Scan_worker(id int, r regexp.Regexp, wg *sync.WaitGroup, rawContents bool) 
 			Jdata.RawContents = compressEncode(j, Jdata.Size)
 		}
 
-		data, err := json.Marshal(Jdata)
-		fmt.Printf("%s\n", data)
+		timestamps, err := statTimes(j)
+		Jdata.Timestamps = timestamps
+
+		fmt.Println(Jdata)
+		// Develop
+		//data, err := json.MarshalIndent(Jdata, "", "   ")
+		//fmt.Printf("%s\n", data)
 	}
 	wg.Done()
 }
@@ -180,7 +235,7 @@ func main() {
 	var wg sync.WaitGroup
 	for w := 1; w <= 10; w++ {
 		wg.Add(1)
-		go Scan_worker(w, *r, &wg, *rawContents)
+		go Scan_worker(*r, &wg, *rawContents)
 	}
 
 	filepath.Walk(*dir, func(path string, f os.FileInfo, err error) error {
@@ -188,7 +243,7 @@ func main() {
 			return err
 		}
 
-		if !f.IsDir(){
+		if !f.IsDir() {
 			if f.Size() < (*size * 1024 * 1024) {
 				//fmt.Println(f.Size(), *size * 1024 * 1024)
 				//fmt.Println(path, f.Size())
@@ -198,8 +253,8 @@ func main() {
 					filesToScan <- path
 					totalFilesScanned = totalFilesScanned + 1
 
-				/// Scan files with specific extensions
-				}else {
+					/// Scan files with specific extensions
+				} else {
 					items := strings.SplitAfter(*exts, "|")
 					for _, e := range items {
 						if strings.HasSuffix(path, e) {
@@ -222,6 +277,18 @@ func main() {
 	metrics.Matched = matched
 	metrics.ScannedDir = *dir
 	metrics.ScanTime = time.Since(start).Minutes()
+
+	// Items empty if error
+	osName, _ := os.Hostname()
+	envVars := os.Environ()
+	theUser, _ := user.Current()
+
+	metrics.SystemInfo.Hostname = osName
+	metrics.SystemInfo.EnvVars = envVars
+	metrics.SystemInfo.Username = theUser.Username
+	metrics.SystemInfo.UserID = theUser.Uid
+	metrics.SystemInfo.RealName = theUser.Name
+	metrics.SystemInfo.UserHomeDir = theUser.HomeDir
 
 	data, err := json.Marshal(metrics)
 	if err != nil {
