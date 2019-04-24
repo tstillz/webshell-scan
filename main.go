@@ -153,8 +153,8 @@ func Scan_worker(r regexp.Regexp, wg *sync.WaitGroup, rawContents bool) {
 
 		fmt.Println(Jdata)
 		// Develop
-		data, err := json.MarshalIndent(Jdata, "", "   ")
-		fmt.Printf("%s\n", data)
+		//data, err := json.MarshalIndent(Jdata, "", "   ")
+		//fmt.Printf("%s\n", data)
 	}
 	wg.Done()
 }
