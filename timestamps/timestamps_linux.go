@@ -1,5 +1,12 @@
 package timestamps
 
+import (
+	"os"
+	"syscall"
+	"time"
+	cm "../common"
+)
+
 func StatTimes(filePath string) (wts cm.FileTimes, err error) {
 	fi, err := os.Stat(filePath)
 	if err != nil {
