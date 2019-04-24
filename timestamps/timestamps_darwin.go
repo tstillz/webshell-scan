@@ -4,7 +4,7 @@ import (
 	"os"
 	"syscall"
 	"time"
-	cm "github.com/tstillz/webshell-scan/common"
+	cm "../common"
 )
 
 

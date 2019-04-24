@@ -1,6 +1,8 @@
 package main
 
 import (
+	cm "./common"
+	ft "./timestamps"
 	"bufio"
 	"bytes"
 	"compress/gzip"
@@ -20,9 +22,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-	ft "github.com/tstillz/webshell-scan/timestamps"
-	cm "github.com/tstillz/webshell-scan/common"
-
 )
 
 var matched = 0
