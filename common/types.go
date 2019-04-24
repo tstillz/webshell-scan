@@ -7,7 +7,6 @@ func FormatTimestamp(dts time.Time)(cts string){
 	return cts
 }
 
-
 type OSInfo struct {
 	Hostname    string   `json:"hostname"`
 	EnvVars     []string `json:"envVars"`
