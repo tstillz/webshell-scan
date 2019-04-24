@@ -151,8 +151,14 @@ func Scan_worker(r regexp.Regexp, wg *sync.WaitGroup, rawContents bool) {
 		timestamps, err := ft.StatTimes(j)
 		Jdata.Timestamps = timestamps
 
-		fmt.Println(Jdata)
-		// Develop
+		// PROD
+		data, err := json.Marshal(Jdata)
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Printf("%s\n", data)
+
+		// DEVELOP
 		//data, err := json.MarshalIndent(Jdata, "", "   ")
 		//fmt.Printf("%s\n", data)
 	}
