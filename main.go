@@ -19,42 +19,11 @@ import (
 	"regexp"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
+	ft "github.com/tstillz/webshell-scan/timestamps"
+	cm "github.com/tstillz/webshell-scan/common"
+
 )
-
-type OSInfo struct {
-	Hostname    string   `json:"hostname"`
-	EnvVars     []string `json:"envVars"`
-	Username    string   `json:"username"`
-	UserID      string   `json:"userID"`
-	RealName    string   `json:"realName"`
-	UserHomeDir string   `json:"userHomeDir"`
-}
-
-type FileObj struct {
-	FilePath    string         `json:"filePath"`
-	Size        int64          `json:"size"`
-	MD5         string         `json:"md5"`
-	Timestamps  FileTimes      `json:"timestamps"`
-	Matches     map[string]int `json:"matches"`
-	RawContents string         `json:"rawContents,omitempty"`
-}
-type Metrics struct {
-	Scanned    int     `json:"scanned"`
-	Matched    int     `json:"matches"`
-	Clear      int     `json:"noMatches"`
-	ScannedDir string  `json:"directory"`
-	ScanTime   float64 `json:"scanDuration"`
-	SystemInfo OSInfo  `json:"systemInfo"`
-}
-
-type FileTimes struct {
-	Birth    time.Time `json:"birth"`
-	Created  time.Time `json:"created"`
-	Modified time.Time `json:"modified"`
-	Accessed time.Time `json:"accessed"`
-}
 
 var matched = 0
 var cleared = 0
@@ -119,21 +88,6 @@ func md5HashFile(filePath string) (string, error) {
 	returnMD5String = hex.EncodeToString(hashInBytes)
 	return returnMD5String, nil
 }
-func statTimes(filePath string) (ts FileTimes, err error) {
-	fi, err := os.Stat(filePath)
-	if err != nil {
-		return
-	}
-
-	stat := fi.Sys().(*syscall.Stat_t)
-	ts.Modified = time.Unix(int64(stat.Mtimespec.Sec), int64(stat.Mtimespec.Nsec)).UTC()
-	ts.Accessed = time.Unix(int64(stat.Atimespec.Sec), int64(stat.Atimespec.Nsec)).UTC()
-	ts.Created = time.Unix(int64(stat.Ctimespec.Sec), int64(stat.Ctimespec.Nsec)).UTC()
-	ts.Birth = time.Unix(int64(stat.Birthtimespec.Sec), int64(stat.Birthtimespec.Nsec)).UTC()
-
-	return
-
-}
 func compressEncode(filePath string, fileSize int64) string {
 
 	fileItem, err := os.Open(filePath)
@@ -172,7 +126,7 @@ func Scan_worker(r regexp.Regexp, wg *sync.WaitGroup, rawContents bool) {
 		//fmt.Println("Worker:", id, "File:", j)
 		//fmt.Println(len(filesToScan))
 
-		Jdata := FileObj{}
+		Jdata := cm.FileObj{}
 		Jdata.FilePath = j
 		fileMatches, size := processMatches(j, r)
 		Jdata.Size = size
@@ -194,13 +148,14 @@ func Scan_worker(r regexp.Regexp, wg *sync.WaitGroup, rawContents bool) {
 			Jdata.RawContents = compressEncode(j, Jdata.Size)
 		}
 
-		timestamps, err := statTimes(j)
+		// File Timestamps
+		timestamps, err := ft.StatTimes(j)
 		Jdata.Timestamps = timestamps
 
 		fmt.Println(Jdata)
 		// Develop
-		//data, err := json.MarshalIndent(Jdata, "", "   ")
-		//fmt.Printf("%s\n", data)
+		data, err := json.MarshalIndent(Jdata, "", "   ")
+		fmt.Printf("%s\n", data)
 	}
 	wg.Done()
 }
@@ -238,11 +193,10 @@ func main() {
 		go Scan_worker(*r, &wg, *rawContents)
 	}
 
-	filepath.Walk(*dir, func(path string, f os.FileInfo, err error) error {
+	_ = filepath.Walk(*dir, func(path string, f os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
-
 		if !f.IsDir() {
 			if f.Size() < (*size * 1024 * 1024) {
 				//fmt.Println(f.Size(), *size * 1024 * 1024)
@@ -271,7 +225,7 @@ func main() {
 	close(filesToScan)
 	wg.Wait()
 
-	metrics := Metrics{}
+	metrics := cm.Metrics{}
 	metrics.Scanned = totalFilesScanned
 	metrics.Clear = cleared
 	metrics.Matched = matched
