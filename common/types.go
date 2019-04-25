@@ -34,8 +34,8 @@ type Metrics struct {
 }
 
 type FileTimes struct {
-	Birth    string `json:"birth"`
-	Created  string `json:"created"`
-	Modified string `json:"modified"`
-	Accessed string `json:"accessed"`
+	Birth    string `json:"birth,omitempty"`
+	Created  string `json:"created,omitempty"`
+	Modified string `json:"modified,omitempty"`
+	Accessed string `json:"accessed,omitempty"`
 }
