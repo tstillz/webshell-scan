@@ -1,5 +1,5 @@
 # About web shell scan
-Web shell scan is a cross platform standalone binary that recursively scans through a specified directory with either user defined or default regex. 
+Web shell scan is a cross platform standalone utility that recursively scans through a specified directory with either user defined or default regex. 
 Web shell scan utilizes a pool of go routines (10 total) to read from a channel and speed up the scanner. Note, the regex supplied with the scanner isn't 100% and does not guarantee it will find every web shell on disk.  
 
 This tool is related to the following write up:
@@ -11,7 +11,7 @@ To test effectiveness of the scanner, it was tested against the tennc web shell 
 https://github.com/tennc/webshell
 
 ### Requirements
-None! Simply download the binary for your OS, supply the directory you wish to scan and let it rip.
+`go build` for your platform/arch. Once built, supply the directory you wish to scan and let it rip.
 
 ### Running the binary
 Running `webscan` with no arguments shows the following arguments:
